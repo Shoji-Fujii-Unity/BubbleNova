@@ -85,6 +85,18 @@
   #restart:hover{transform:translateY(-2px);background-position:100% 0;box-shadow:0 10px 32px rgba(143,216,255,.5);}
   #restart:active{transform:translateY(0) scale(.97);}
   #help{margin-top:10px;font-size:11.5px;opacity:.6;text-align:center;line-height:1.7;max-width:420px;}
+  @media (max-width:600px) and (max-height:850px) and (orientation:portrait){
+    #wrap{padding:4px 8px 8px;}
+    .brand h1{font-size:25px;margin:0;}
+    #tagline{font-size:11px;margin-bottom:4px;min-height:14px;}
+    #ctrlRow{margin-bottom:5px;}
+    #hud{margin-bottom:6px;}
+    .chip{padding:4px 3px 5px;}
+    .chip b{font-size:14px;}
+    canvas{max-height:calc(100vh - 210px);max-height:calc(100svh - 210px);}
+    #restart{margin-top:8px;padding:9px 26px;}
+    #help{display:none;}
+  }
 </style>
 </head>
 <body>
@@ -135,6 +147,19 @@ const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const HAS={ howl: typeof Howl!=='undefined',
             conf: typeof confetti==='function',
             gsap: typeof gsap!=='undefined' };
+let confettiFx=null;
+let confettiCanvas=null;
+if(HAS.conf){
+  confettiCanvas=document.createElement('canvas');
+  confettiCanvas.setAttribute('aria-hidden','true');
+  confettiCanvas.style.cssText='position:fixed;inset:0;width:100%;height:100%;max-width:none;border-radius:0;background:transparent;pointer-events:none;z-index:9999;';
+  document.body.appendChild(confettiCanvas);
+  confettiFx=confetti.create(confettiCanvas,{resize:true,useWorker:true});
+}
+function emitConfetti(options){
+  if(!confettiFx) return;
+  confettiFx(options);
+}
 
 /* ---------- 永続設定 ---------- */
 let soundOn = localStorage.getItem('nova_sound')!=='0';
@@ -550,7 +575,7 @@ function resolvePlace(x,y,color){
         floats.push({x:cx,y:cy-22,txt:call,t:0,color:"#ffd94f",big:true});
         shake=Math.min(14,shake+cluster.length*1.3);
         flash=Math.min(.35,flash+cluster.length*.04);
-        confettiMini(cx,cy,cluster.length);
+        confettiMini(cluster.length);
       }
       dropFloating();
     }
@@ -649,20 +674,32 @@ function burst(x,y,color){
     parts.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s-1.1,life:1,color,r:2+Math.random()*3.2,star:i<4});
   }
 }
-function confettiMini(cx,cy,n){
-  if(!HAS.conf) return;
-  const r=cv.getBoundingClientRect();
-  const ox=(r.left+cx*r.width /W)/window.innerWidth;
-  const oy=(r.top +cy*r.height/H)/window.innerHeight;
-  confetti({particleCount:Math.min(14+n*4,50),spread:60,startVelocity:20,gravity:1.1,
-    scalar:.65,tickCount:60,origin:{x:clamp(ox,0,1),y:clamp(oy,0,1)},colors:COLORS.slice(0,colorCount),
-    disableForMotionReduction:true});
+function confettiMini(n){
+  if(!confettiFx) return;
+  const origins=[
+    {x:.02,y:.05},{x:.25,y:.05},{x:.5,y:.05},{x:.75,y:.05},{x:.98,y:.05},
+    {x:.02,y:.95},{x:.25,y:.95},{x:.5,y:.95},{x:.75,y:.95},{x:.98,y:.95}
+  ];
+  const total=Math.min(14+n*4,50), each=Math.floor(total/origins.length), extra=total%origins.length;
+  origins.forEach((origin,i)=>{
+    const particleCount=each+(i<extra?1:0);
+    if(!particleCount) return;
+    setTimeout(()=>emitConfetti({
+      particleCount,angle:origin.y<.5?270:90,spread:70,startVelocity:22,gravity:.8,
+      scalar:.65,ticks:180,origin,colors:COLORS.slice(0,colorCount),disableForMotionReduction:true
+    }),i*30);
+  });
 }
 function confettiBig(){
-  if(!HAS.conf) return;
-  confetti({particleCount:150,spread:85,origin:{x:.5,y:.45},colors:COLORS.slice(0,colorCount)});
-  setTimeout(()=>confetti({particleCount:80,angle:60,spread:55,origin:{x:0,y:.62},colors:COLORS.slice(0,colorCount)}),140);
-  setTimeout(()=>confetti({particleCount:80,angle:120,spread:55,origin:{x:1,y:.62},colors:COLORS.slice(0,colorCount)}),280);
+  if(!confettiFx) return;
+  const origins=[
+    {x:.02,y:.05},{x:.25,y:.05},{x:.5,y:.05},{x:.75,y:.05},{x:.98,y:.05},
+    {x:.02,y:.95},{x:.25,y:.95},{x:.5,y:.95},{x:.75,y:.95},{x:.98,y:.95}
+  ];
+  origins.forEach((origin,i)=>setTimeout(()=>emitConfetti({
+    particleCount:40,angle:origin.y<.5?270:90,spread:70,startVelocity:25,gravity:.75,ticks:300,
+    origin,colors:COLORS.slice(0,colorCount)
+  }),i*90));
 }
 
 /* ---------- 背景（多層星空＋星雲＋流れ星） ---------- */
